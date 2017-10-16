@@ -64,6 +64,13 @@ class NDChild(object):
             elif s.sentenceList[0] == "ka" or ("ka" not in s.sentenceList and s.sentenceList[0]=="Aux"):
                 self.adjustweight("HCP", 0, self.r)
 
+
+    #fourth parameter Optional Topic (0 is obligatory,  1 is optional)
+    def optEtrigger(self, s):
+        if self.grammar["TM"] > 0.5 and "[+WA]" not in s.sentenceStr:
+            self.adjustweight("OPT",1,self.r)
+        
+
     def nsEtrigger(self, s):
         if s.inflection == "DEC" and "S" not in s.sentenceStr and s.outOblique():
             self.adjustweight("NS",1,self.r)
@@ -73,6 +80,7 @@ class NDChild(object):
     def ntEtrigger(self, s):
         if s.inflection == "DEC" and "O2" in s.sentenceStr and "O1" not in s.sentenceStr:
             self.adjustweight("NT",1,self.r)
+            #self.adjustweight("OPT", 0, self.r) #null topic necessitates obligatory topic
 
         elif s.inflection == "DEC" and "O2" in s.sentenceStr and "O1" in s.sentenceStr and "O3" in s.sentenceStr and "S" in s.sentenceStr and "Adv" in s.sentenceStr:
             self.adjustweight("NT",0,self.conservativerate)
@@ -159,8 +167,8 @@ class NDChild(object):
 
         elif "Aux" in s.sentenceStr and self.grammar["AH"] <= 0.5:
             self.adjustweight ("AH",0,self.conservativerate)
-            if self.grammar["VtoI"] > 0.5: #If not affix hopping language, vtoi is either 0 or 1, but if evidence of vtoi towards 1 has alreadybeen observed, increase confidence 1VtoI given 0AH
-                self.adjustweight("VtoI", 1, self.conservativerate)
+            #if self.grammar["VtoI"] > 0.5: #If not affix hopping language, vtoi is either 0 or 1, but if evidence of vtoi towards 1 has alreadybeen observed, increase confidence 1VtoI given 0AH
+            #   self.adjustweight("VtoI", 1, self.conservativerate)
 
     def adjustweight(self, parameter, direction, rate):
         if direction == 0:
