@@ -145,7 +145,7 @@ class NDChild(object):
                 if s.sentenceList.index("Aux") == s.sentenceList.index("Verb") + 1:
                     self.adjustweight("ItoC", 0, self.conservativerate)
   
-            elif "Aux" in s.sentence and "V" in s.sentence:
+            elif "Aux" in s.sentenceStr and "V" in s.sentenceList:
                 Vindex = s.sentenceList.index("V")
                 Auxindex = s.sentenceList.index("Aux")
                 Sindex = s.sentenceList.index ("S")
