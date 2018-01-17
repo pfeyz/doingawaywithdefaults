@@ -69,6 +69,7 @@ class NDChild(object):
     def optEtrigger(self, s):
         if self.grammar["TM"] > 0.5 and "[+WA]" not in s.sentenceStr:
             self.adjustweight("OPT",1,self.r)
+         
         
 
     def nsEtrigger(self, s):
@@ -125,8 +126,9 @@ class NDChild(object):
         sp = self.grammar['SP']
         hip = self.grammar['HIP']
         hcp = self.grammar['HCP']
+         
         
-        if s.inflection == "DEC":
+        if s.inflection == "DEC" and "S" in s.sentenceList and "Aux" in s.sentenceList:
             if sp < 0.5 and hip < 0.5: # (Word orders 1, 5) subject and IP initial, aux to the right of Subject
                 Sindex = s.sentenceList.index("S")
                 if Sindex > 0 and s.sentenceList.index("Aux") == Sindex + 1:
@@ -137,16 +139,16 @@ class NDChild(object):
                 if (AuxIndex > 0 and s.sentenceList.index("S") == AuxIndex + 1):
                     self.adjustweight("ItoC", 0, self.r)
            
-            elif sp > 0.5 and hip < 0.5 and hcp > 0.5: #subject and C final, IP initial, Aux immediately follows verb
+            elif sp > 0.5 and hip < 0.5 and hcp > 0.5 and "Verb" in s.sentenceList: #subject and C final, IP initial, Aux immediately follows verb
                 if s.sentenceList.index("Verb") == s.sentenceList.index("Aux") + 1:
                     self.adjustweight("ItoC", 0, self.conservativerate)
 
-            elif sp < 0.5 and hip > 0.5 and hcp < 0.5: #subject and C initial, IP final, Aux immediately precedes verb
+            elif sp < 0.5 and hip > 0.5 and hcp < 0.5 and "Verb" in s.sentenceList: #subject and C initial, IP final, Aux immediately precedes verb
                 if s.sentenceList.index("Aux") == s.sentenceList.index("Verb") + 1:
                     self.adjustweight("ItoC", 0, self.conservativerate)
   
-            elif "Aux" in s.sentenceStr and "V" in s.sentenceList:
-                Vindex = s.sentenceList.index("V")
+            elif "Aux" in s.sentenceStr and "Verb" in s.sentenceList and "S" in s.sentenceList and "O1" in s.sentenceList and "O2" in s.sentenceList:
+                Vindex = s.sentenceList.index("Verb")
                 Auxindex = s.sentenceList.index("Aux")
                 Sindex = s.sentenceList.index ("S")
                 O1index = s.sentenceList.index ("O1")
