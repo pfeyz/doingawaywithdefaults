@@ -145,21 +145,31 @@ class NDChild(object):
 
             elif sp < 0.5 and hip > 0.5 and hcp < 0.5 and "Verb" in s.sentenceList: #subject and C initial, IP final, Aux immediately precedes verb
                 if s.sentenceList.index("Aux") == s.sentenceList.index("Verb") + 1:
-                    self.adjustweight("ItoC", 0, self.conservativerate)
+                    self.adjustweight("ItoC", 0, self.r)
+                else:
+                    self.adjustweight("ItoC", 1, self.conservativerate)
+                    #will experiment with aggressive rate
   
-            elif "Aux" in s.sentenceStr and "Verb" in s.sentenceList and "S" in s.sentenceList and "O1" in s.sentenceList and "O2" in s.sentenceList:
+            elif "Aux" in s.sentenceStr and "Verb" in s.sentenceList: #check if aux and verb in sentence and something comes between them
                 Vindex = s.sentenceList.index("Verb")
                 Auxindex = s.sentenceList.index("Aux")
-                Sindex = s.sentenceList.index ("S")
-                O1index = s.sentenceList.index ("O1")
-                O2index = s.sentenceList.index ("O2")
+                indexlist = [] #tokens that would shed light if between 
+                if "S" in s.sentenceList:
+                    Sindex = s.sentenceList.index ("S")
+                    indexlist.append(Sindex)
+                    
+                if "O1" in s.sentenceList:
+                    O1index = s.sentenceList.index ("O1")
+                    indexlist.append(O1index)
+                    
+                if "O2" in s.sentenceList:
+                    O2index = s.sentenceList.index ("O2")
+                    indexlist.append(O2index)
                 
-                indexlist = [Sindex, O1index, O2index]
-                
-                if abs(Vindex - Auxindex) != 1:
+                if abs(Vindex - Auxindex) != 1: #if verb and aux not adjacent
                     for idx in indexlist:
-                        if ( Vindex < idx < Auxindex ) or (Vindex > idx > Auxindex):
-                            self.adjustweight("ItoC", 1, self.r)
+                        if ( Vindex < idx < Auxindex ) or (Vindex > idx > Auxindex): #if item in index list between them
+                            self.adjustweight("ItoC", 1, self.r) #set toward 1
                             break            
   
     def ahEtrigger(self, s):
@@ -180,6 +190,7 @@ class NDChild(object):
     def QInvEtrigger(self, s):
         if s.inflection == "Q" and "ka" in s.sentenceStr:
             self.adjustweight("QInv", 0, self.r)
+            self.adjustweight("ItoC",0, self.r)
             
         elif s.inflection == "Q"and "ka" not in s.sentenceStr and "WH" not in s.sentenceStr:
             self.adjustweight("QInv", 1, self.r)
