@@ -9,16 +9,16 @@ class NDChild(object):
         self.spEtrigger(s)    #parameter 1
         self.hipEtrigger(s)   #parameter 2
         self.hcpEtrigger(s)   #parameter 3
-        #self.optEtrigger(s)  #parameter 4
+        self.optEtrigger(s)   #parameter 4
         self.nsEtrigger(s)    #parameter 5
         self.ntEtrigger(s)    #parameter 6
         self.whmEtrigger(s)   #parameter 7
         self.piEtrigger(s)    #parameter 8
         self.tmEtrigger(s)    #parameter 9
         self.VtoIEtrigger(s)  #parameter 10
-        self.ItoCEtrigger(s) #parameter 11
+        self.ItoCEtrigger(s)  #parameter 11
         self.ahEtrigger(s)    #parameter 12
-        self.QInvEtrigger(s) #parameter 13
+        self.QInvEtrigger(s)  #parameter 13
 
     #etriggers for parameters
     # first parameter Subject Position
@@ -81,7 +81,7 @@ class NDChild(object):
     def ntEtrigger(self, s):
         if s.inflection == "DEC" and "O2" in s.sentenceStr and "O1" not in s.sentenceStr:
             self.adjustweight("NT",1,self.r)
-            #self.adjustweight("OPT", 0, self.r) #null topic necessitates obligatory topic
+            self.adjustweight("OPT", 0, self.r) #null topic necessitates obligatory topic
 
         elif s.inflection == "DEC" and "O2" in s.sentenceStr and "O1" in s.sentenceStr and "O3" in s.sentenceStr and "S" in s.sentenceStr and "Adv" in s.sentenceStr:
             self.adjustweight("NT",0,self.conservativerate)
