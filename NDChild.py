@@ -9,7 +9,7 @@ class NDChild(object):
         self.spEtrigger(s)    #parameter 1
         self.hipEtrigger(s)   #parameter 2
         self.hcpEtrigger(s)   #parameter 3
-        self.optEtrigger(s)   #parameter 4
+        #self.optEtrigger(s)   #parameter 4
         self.nsEtrigger(s)    #parameter 5
         self.ntEtrigger(s)    #parameter 6
         self.whmEtrigger(s)   #parameter 7
