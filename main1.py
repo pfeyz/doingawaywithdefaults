@@ -18,6 +18,8 @@ def pickASentence(languageDomain):
     return choice(languageDomain)
 
 def timefn(fun):
+    """A decorator that wraps a function and causes it to print out its
+    runtime when executed."""
     def wrapper(*args, **kwargs):
         start = time()
         val = fun(*args, **kwargs)
@@ -48,12 +50,8 @@ start = time()
 COLAG_DOMAIN = readLD('COLAG_2011_flat_formatted.txt')
 
 def createLD(language):
-    #languageDict = {'english': '611', 'french': '584', 'german': '2253', 'japanese': '3856'}
-    langNum = language
-    #print "type langnum"
-    #print type(langNum)
-    langNum=bin(int(langNum))[2:].zfill(13)
-    #print(langNum)
+    langNum=bin(int(language))[2:].zfill(13)
+    print('colag id', id(COLAG_DOMAIN))
     return COLAG_DOMAIN[langNum]
 
 def childLearnsLanguage(ndr, languageDomain,language,numberofsentences):
@@ -138,36 +136,15 @@ def runAllCoLAGLanguages(numLearners, numberofsentences):
         language = str(int(key, 2))
         runSingleLearnerSimulation(value, numLearners, numberofsentences, language)
 
-def runLangWrapper(args):
-    return runOneLanguage(*args)
-
-if __name__ == '__main__':
-    q=Queue()
-    parser = ArgumentParser(prog='Doing Away With Defaults', description='Set simulation parameters for learners')
-    parser.add_argument('integers', metavar='int', type=int, nargs=2,
-                        help='(1) The number of learners (2) The number of '
-                         'sentences consumed')
-
-    args = parser.parse_args()
-    numLearners = 0
-
-    # Test whether certain command line arguments
-    # can be converted to positive integers
-    numLearners = args.integers[0]
-    numberofsentences = args.integers[1]
-    #language = str(args.strings[0]).lower()
-
-    languages=[]
-    with open('COLAG_Flat_GrammID_Binary_List.tsv', 'rb') as tsvin:
+def readLanguages(path):
+    languages = []
+    with open(path, 'rb') as tsvin:
         tsvin = csv.reader(tsvin, delimiter='\t')
         for row in tsvin:
             languages.append(row.pop(0))
-    pool = Pool(4)
-    arguments = [(numLearners, numberofsentences, lang)
-                     for lang in languages]
-    results = pool.map(runLangWrapper, arguments)
+    return languages
 
-    outputfile = 'simulation-output3.csv'
+def writeOutput(results, outputfile):
     with open(outputfile, "a+b") as outFile:
         outWriter = writer(outFile)
         pList = ["lang", "SP", "HIP", "HCP", "OPT", "NS", "NT", "WHM", "PI", "TM", "VtoI", "ItoC", "AH", "QInv"]
@@ -179,5 +156,31 @@ if __name__ == '__main__':
                     r1.append(r[0][p])
                     r1.append(r[1][p])
                 outWriter.writerow(r1)
+
+
+def runLangWrapper(args):
+    return runOneLanguage(*args)
+
+if __name__ == '__main__':
+    parser = ArgumentParser(prog='Doing Away With Defaults', description='Set simulation parameters for learners')
+    parser.add_argument('num_learners', type=int, help='the number of learners simulations to run per languages')
+    parser.add_argument('num_sentences', type=int, help='the number of sentences to give each learner')
+
+    args = parser.parse_args()
+
+    numLearners = args.num_learners
+    numSentences = args.num_sentences
+
+    languages = readLanguages('COLAG_Flat_GrammID_Binary_List.tsv')
+
+    pool = Pool(multiprocessing.cpu_count() - 1)
+
+    arguments = [(numLearners, numSentences, lang)
+                  for lang in sorted(map(int,languages))]
+
+    results = pool.map(runLangWrapper, arguments)
+
+    outputfile = 'simulation-output4.csv'
+
 
 print("--- %s seconds ---" % (time() - start))
