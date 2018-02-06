@@ -1,5 +1,5 @@
 from time import time
-from random import choice
+from random import choice, shuffle
 from argparse import ArgumentParser
 from NDresults import NDresults
 from NDChild import NDChild
@@ -8,7 +8,7 @@ from sys import exit
 import csv
 from csv import writer
 import multiprocessing
-from multiprocessing import Queue
+from multiprocessing import Queue, Pool
 #GLOBALS
 rate = 0.02
 conservativerate = 0.001
@@ -17,16 +17,20 @@ results=[]
 def pickASentence(languageDomain):
     return choice(languageDomain)
 
-def createLD(language):
-    #languageDict = {'english': '611', 'french': '584', 'german': '2253', 'japanese': '3856'}
-    langNum = language
-    #print "type langnum"
-    #print type(langNum)
-    langNum=bin(int(langNum))[2:].zfill(13)
-    #print(langNum)
-    LD = []
+def timefn(fun):
+    def wrapper(*args, **kwargs):
+        start = time()
+        val = fun(*args, **kwargs)
+        print "{}({}, {}) took {}".format(fun.__name__,
+                                          args, kwargs,
+                                          time() - start)
+        return val
+    return wrapper
 
-    with open('COLAG_2011_flat_formatted.txt','r') as infoFile:
+@timefn
+def readLD(path):
+    domain = {}
+    with open(path, 'r') as infoFile:
         for line in infoFile:
             [grammStr, inflStr, sentenceStr] = line.split("\t")
             sentenceStr = sentenceStr.rstrip()
@@ -34,11 +38,23 @@ def createLD(language):
             #print(sentenceStr)
             # constructor creates sentenceList
             s = Sentence([grammStr, inflStr, sentenceStr])
-            if grammStr == langNum:
-                #print([grammStr, inflStr, sentenceStr])
-                LD.append(s)
+            try:
+                domain[grammStr].append(s)
+            except:
+                domain[grammStr] = [s]
+    return domain
 
-    return LD
+start = time()
+COLAG_DOMAIN = readLD('COLAG_2011_flat_formatted.txt')
+
+def createLD(language):
+    #languageDict = {'english': '611', 'french': '584', 'german': '2253', 'japanese': '3856'}
+    langNum = language
+    #print "type langnum"
+    #print type(langNum)
+    langNum=bin(int(langNum))[2:].zfill(13)
+    #print(langNum)
+    return COLAG_DOMAIN[langNum]
 
 def childLearnsLanguage(ndr, languageDomain,language,numberofsentences):
     ndr.resetThresholdDict()
@@ -54,7 +70,7 @@ def childLearnsLanguage(ndr, languageDomain,language,numberofsentences):
 
     return [aChild.grammar, ndr.thresholdDict]
 
-def runSingleLearnerSimulation(languageDomain, numLearners, numberofsentences, language,q):
+def runSingleLearnerSimulation(languageDomain, numLearners, numberofsentences, language):
     # Make an instance of NDresults and write the header for the output file
     ndr = NDresults()
     #ndr.writeOutputHeader(language, numLearners, numberofsentences)
@@ -63,16 +79,17 @@ def runSingleLearnerSimulation(languageDomain, numLearners, numberofsentences, l
 
     print("Starting the simulation...")
     result = [childLearnsLanguage(ndr, languageDomain,language,numberofsentences) for x in range(numLearners)]
-    q.put(result)
+    return result
 
-def runOneLanguage(numLearners, numberofsentences, language,q):
+@timefn
+def runOneLanguage(numLearners, numberofsentences, language):
     if numLearners < 1 or numberofsentences < 1:
         print('Arguments must be positive integers')
         exit(2)
 
     LD = createLD(language)
 
-    runSingleLearnerSimulation(LD, numLearners, numberofsentences, language,q)
+    return runSingleLearnerSimulation(LD, numLearners, numberofsentences, language)
 
 # Run random 100 language speed run
 def runSpeedTest(numLearners, numberofsentences):
@@ -92,7 +109,7 @@ def runSpeedTest(numLearners, numberofsentences):
         for line in infoFile:
             [grammStr, inflStr, sentenceStr] = line.split("\t")
 
-            if grammStr in languageDict:     
+            if grammStr in languageDict:
                 sentenceStr = sentenceStr.rstrip()
                 # constructor creates sentenceList
                 s = Sentence([grammStr, inflStr, sentenceStr])
@@ -121,20 +138,15 @@ def runAllCoLAGLanguages(numLearners, numberofsentences):
         language = str(int(key, 2))
         runSingleLearnerSimulation(value, numLearners, numberofsentences, language)
 
+def runLangWrapper(args):
+    return runOneLanguage(*args)
+
 if __name__ == '__main__':
-    start = time()
-    global results
     q=Queue()
-    # The argument keeps track of the mandatory arguments,
-    # number of learners, max number of sentences, and target grammar
     parser = ArgumentParser(prog='Doing Away With Defaults', description='Set simulation parameters for learners')
     parser.add_argument('integers', metavar='int', type=int, nargs=2,
                         help='(1) The number of learners (2) The number of '
                          'sentences consumed')
-    #parser.add_argument('strings', metavar='str', type=str, nargs=1)
-                        #help='The name of the language that will be used.'
-                                #'The current options are English=611, '
-                                #'German=2253, French=584, Japanese=3856')
 
     args = parser.parse_args()
     numLearners = 0
@@ -145,40 +157,15 @@ if __name__ == '__main__':
     numberofsentences = args.integers[1]
     #language = str(args.strings[0]).lower()
 
-    # if language == "alllanguages":
-    #     runAllCoLAGLanguages(numLearners, numberofsentences)
-    # elif language == "speedtest":
-    #     runSpeedTest(numLearners, numberofsentences)
-    # else:
     languages=[]
     with open('COLAG_Flat_GrammID_Binary_List.tsv', 'rb') as tsvin:
         tsvin = csv.reader(tsvin, delimiter='\t')
         for row in tsvin:
             languages.append(row.pop(0))
-    print(languages)
-    print(numberofsentences)
-    print(numLearners)
-    jobs = []
-    n=0
-    while n<len(languages):
-        #q = Queue()
-        for i in range(0,2):
-            if n>=len(languages):
-                break
-            p = multiprocessing.Process(target=runOneLanguage, args=(numLearners, numberofsentences, languages[n],q,))
-            n=n+1
-            #print(n)
-            jobs.append(p)
-            p.start()
-            #results.append(q.get())
-        while 1:
-            running = any(p.is_alive() for p in jobs)
-            while not q.empty():
-                results.append(q.get())
-            if not running:
-                break
-        print(results)
-    #runOneLanguage(numLearners, numberofsentences, language)
+    pool = Pool(4)
+    arguments = [(numLearners, numberofsentences, lang)
+                     for lang in languages]
+    results = pool.map(runLangWrapper, arguments)
 
     outputfile = 'simulation-output3.csv'
     with open(outputfile, "a+b") as outFile:
@@ -193,4 +180,4 @@ if __name__ == '__main__':
                     r1.append(r[1][p])
                 outWriter.writerow(r1)
 
-    print("--- %s seconds ---" % (time() - start))
+print("--- %s seconds ---" % (time() - start))
