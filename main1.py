@@ -14,6 +14,7 @@ rate = 0.02
 conservativerate = 0.001
 threshold = .001
 results=[]
+
 def pickASentence(languageDomain):
     return choice(languageDomain)
 
@@ -46,8 +47,6 @@ def readLD(path):
                 domain[grammStr] = [s]
     return domain
 
-start = time()
-COLAG_DOMAIN = readLD('COLAG_2011_flat_formatted.txt')
 
 def createLD(language):
     langNum=bin(int(language))[2:].zfill(13)
@@ -159,7 +158,15 @@ def writeOutput(results, outputfile):
 
 
 def runLangWrapper(args):
+    """A simple wrapper around runOneLanguage. Pool.map(f, args) cannot
+
+    pass multiple args to the function f (I believe), so this function
+    accepts a tuple  """
     return runOneLanguage(*args)
+
+# using a global here since it appears to be shared between the subprocesses
+COLAG_DOMAIN = readLD('COLAG_2011_flat_formatted.txt')
+start = time()
 
 if __name__ == '__main__':
     parser = ArgumentParser(prog='Doing Away With Defaults', description='Set simulation parameters for learners')
@@ -180,7 +187,7 @@ if __name__ == '__main__':
 
     results = pool.map(runLangWrapper, arguments)
 
-    outputfile = 'simulation-output4.csv'
+    writeOutput(results, 'simulation-output4.csv')
 
 
 print("--- %s seconds ---" % (time() - start))
