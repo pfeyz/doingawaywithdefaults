@@ -139,7 +139,7 @@ def readLanguages(path):
     with open(path, 'rb') as tsvin:
         tsvin = csv.reader(tsvin, delimiter='\t')
         for row in tsvin:
-            languages.append(row.pop(0))
+            languages.append(int(row.pop(0)))
     return languages
 
 def writeOutput(results, outputfile):
@@ -158,9 +158,9 @@ def writeOutput(results, outputfile):
 
 def runLangWrapper(args):
     """A simple wrapper around runOneLanguage. Pool.map(f, args) cannot
-
     pass multiple args to the function f (I believe), so this function
-    accepts a tuple  """
+    accepts a tuple of args and calls runOneLanguage with them.
+    """
     return runOneLanguage(*args)
 
 # using a global here since it appears to be shared between the subprocesses
@@ -182,7 +182,7 @@ if __name__ == '__main__':
     pool = Pool(multiprocessing.cpu_count() - 1)
 
     arguments = [(numLearners, numSentences, lang)
-                  for lang in sorted(map(int,languages))]
+                  for lang in sorted(languages)]
 
     results = pool.map(runLangWrapper, arguments)
 
