@@ -50,7 +50,6 @@ def readLD(path):
 
 def createLD(language):
     langNum=bin(int(language))[2:].zfill(13)
-    print('colag id', id(COLAG_DOMAIN))
     return COLAG_DOMAIN[langNum]
 
 def childLearnsLanguage(ndr, languageDomain,language,numberofsentences):
