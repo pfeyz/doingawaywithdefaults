@@ -1,40 +1,63 @@
 from time import time
-from random import choice
+from random import choice, shuffle
 from argparse import ArgumentParser
 from NDresults import NDresults
 from NDChild import NDChild
 from Sentence import Sentence
 from sys import exit
-import random
-
+import csv
+from csv import writer
+import multiprocessing
+from multiprocessing import Queue, Pool
 #GLOBALS
 rate = 0.02
 conservativerate = 0.001
 threshold = .001
+results=[]
 
 def pickASentence(languageDomain):
     return choice(languageDomain)
 
-def createLD(language):
-    languageDict = {'french': '584'}
-    langNum = languageDict[language]
-    LD = []
+def timefn(fun):
+    """A decorator that wraps a function and causes it to print out its
+    runtime when executed."""
+    def wrapper(*args, **kwargs):
+        start = time()
+        val = fun(*args, **kwargs)
+        print "{}({}, {}) took {}".format(fun.__name__,
+                                          args, kwargs,
+                                          time() - start)
+        return val
+    return wrapper
 
-    with open('EngFrJapGerm.txt','r') as infoFile:
+@timefn
+def readLD(path):
+    domain = {}
+    with open(path, 'r') as infoFile:
         for line in infoFile:
             [grammStr, inflStr, sentenceStr] = line.split("\t")
             sentenceStr = sentenceStr.rstrip()
+            inflStr=inflStr.replace(" ","")
+            #print(sentenceStr)
             # constructor creates sentenceList
             s = Sentence([grammStr, inflStr, sentenceStr])
-            if grammStr == langNum:
-                LD.append(s)
+            try:
+                domain[grammStr].append(s)
+            except:
+                domain[grammStr] = [s]
+    return domain
 
-    return LD
 
-def childLearnsLanguage(ndr, languageDomain,language):
+def createLD(language):
+    langNum=bin(int(language))[2:].zfill(13)
+    print('colag id', id(COLAG_DOMAIN))
+    return COLAG_DOMAIN[langNum]
+
+def childLearnsLanguage(ndr, languageDomain,language,numberofsentences):
     ndr.resetThresholdDict()
-    aChild = NDChild(rate, conservativerate,language)
+    aChild = NDChild(rate, conservativerate, language)
 
+    #print numberofsentences
     for j in xrange(numberofsentences):
         s = pickASentence(languageDomain)
         aChild.consumeSentence(s)
@@ -47,14 +70,15 @@ def childLearnsLanguage(ndr, languageDomain,language):
 def runSingleLearnerSimulation(languageDomain, numLearners, numberofsentences, language):
     # Make an instance of NDresults and write the header for the output file
     ndr = NDresults()
-    ndr.writeOutputHeader(language, numLearners, numberofsentences)
-
+    #ndr.writeOutputHeader(language, numLearners, numberofsentences)
     # Create an array to store the simulation
     # results to write to a csv after its ended
-    print("Starting the simulation...")
-    results = [childLearnsLanguage(ndr, languageDomain,language) for x in range(numLearners)]
-    ndr.writeResults(results)
 
+    print("Starting the simulation...")
+    result = [childLearnsLanguage(ndr, languageDomain,language,numberofsentences) for x in range(numLearners)]
+    return result
+
+@timefn
 def runOneLanguage(numLearners, numberofsentences, language):
     if numLearners < 1 or numberofsentences < 1:
         print('Arguments must be positive integers')
@@ -62,21 +86,19 @@ def runOneLanguage(numLearners, numberofsentences, language):
 
     LD = createLD(language)
 
-    runSingleLearnerSimulation(LD, numLearners, numberofsentences, language)
+    return runSingleLearnerSimulation(LD, numLearners, numberofsentences, language)
 
 # Run random 100 language speed run
 def runSpeedTest(numLearners, numberofsentences):
-    # Make dictionary containing random 100
+    # Make dictionary containing first 100
     # language IDs from the full CoLAG domain
 
     languageDict = {}
-    allLines = []
-    with open('COLAG_Flat_GrammID_Binary_List.txt','r') as myFile:
-        allLines = [line.strip() for line in myFile]
+    with open('COLAG_Flat_GrammID_Binary_List.txt','r') as myfile:
+        head = [next(myfile) for x in xrange(3)]
 
-    randomLineNumbers = random.sample(range(0, len(allLines)), 100)
-    for num in randomLineNumbers:
-        binaryId, decimalId = allLines[num].split('\t')
+    for line in head:
+        binaryId, decimalId = line.split('\t')
         languageDict[binaryId] = []
 
     # Collect the corresponding sentences for each language
@@ -84,7 +106,7 @@ def runSpeedTest(numLearners, numberofsentences):
         for line in infoFile:
             [grammStr, inflStr, sentenceStr] = line.split("\t")
 
-            if grammStr in languageDict:     
+            if grammStr in languageDict:
                 sentenceStr = sentenceStr.rstrip()
                 # constructor creates sentenceList
                 s = Sentence([grammStr, inflStr, sentenceStr])
@@ -113,34 +135,59 @@ def runAllCoLAGLanguages(numLearners, numberofsentences):
         language = str(int(key, 2))
         runSingleLearnerSimulation(value, numLearners, numberofsentences, language)
 
-if __name__ == '__main__':
-    start = time()
+def readLanguages(path):
+    languages = []
+    with open(path, 'rb') as tsvin:
+        tsvin = csv.reader(tsvin, delimiter='\t')
+        for row in tsvin:
+            languages.append(row.pop(0))
+    return languages
 
-    # The argument keeps track of the mandatory arguments,
-    # number of learners, max number of sentences, and target grammar
+def writeOutput(results, outputfile):
+    with open(outputfile, "a+b") as outFile:
+        outWriter = writer(outFile)
+        pList = ["lang", "SP", "HIP", "HCP", "OPT", "NS", "NT", "WHM", "PI", "TM", "VtoI", "ItoC", "AH", "QInv"]
+        for result in results:
+            for index, r in enumerate(result):
+                str1 = 'eChild {}'.format(index)
+                r1 = []
+                for p in pList:
+                    r1.append(r[0][p])
+                    r1.append(r[1][p])
+                outWriter.writerow(r1)
+
+
+def runLangWrapper(args):
+    """A simple wrapper around runOneLanguage. Pool.map(f, args) cannot
+
+    pass multiple args to the function f (I believe), so this function
+    accepts a tuple  """
+    return runOneLanguage(*args)
+
+# using a global here since it appears to be shared between the subprocesses
+COLAG_DOMAIN = readLD('COLAG_2011_flat_formatted.txt')
+start = time()
+
+if __name__ == '__main__':
     parser = ArgumentParser(prog='Doing Away With Defaults', description='Set simulation parameters for learners')
-    parser.add_argument('integers', metavar='int', type=int, nargs=2,
-                        help='(1) The number of learners (2) The number of '
-                         'sentences consumed')
-    parser.add_argument('strings', metavar='str', type=str, nargs=1,
-                        help='The name of the language that will be used.'
-                                'The current options are English=611, '
-                                'German=2253, French=584, Japanese=3856')
+    parser.add_argument('num_learners', type=int, help='the number of learners simulations to run per languages')
+    parser.add_argument('num_sentences', type=int, help='the number of sentences to give each learner')
 
     args = parser.parse_args()
-    numLearners = 0
 
-    # Test whether certain command line arguments
-    # can be converted to positive integers
-    numLearners = args.integers[0]
-    numberofsentences = args.integers[1]
-    language = str(args.strings[0]).lower()
+    numLearners = args.num_learners
+    numSentences = args.num_sentences
 
-    if language == "alllanguages":
-        runAllCoLAGLanguages(numLearners, numberofsentences)
-    elif language == "speedtest":
-        runSpeedTest(numLearners, numberofsentences)
-    else:
-        runOneLanguage(numLearners, numberofsentences, language)  
+    languages = readLanguages('COLAG_Flat_GrammID_Binary_List.tsv')
 
-    print("--- %s seconds ---" % (time() - start))
+    pool = Pool(multiprocessing.cpu_count() - 1)
+
+    arguments = [(numLearners, numSentences, lang)
+                  for lang in sorted(map(int,languages))]
+
+    results = pool.map(runLangWrapper, arguments)
+
+    writeOutput(results, 'simulation-output4.csv')
+
+
+print("--- %s seconds ---" % (time() - start))
