@@ -24,8 +24,7 @@ def timefn(fun):
     def wrapper(*args, **kwargs):
         start = time()
         val = fun(*args, **kwargs)
-        print "{}({}, {}) took {}".format(fun.__name__,
-                                          args, kwargs,
+        print "{} took {}".format(fun.__name__,
                                           time() - start)
         return val
     return wrapper
@@ -52,9 +51,10 @@ def createLD(language):
     langNum=bin(int(language))[2:].zfill(13)
     return COLAG_DOMAIN[langNum]
 
-def childLearnsLanguage(ndr, languageDomain,language,numberofsentences):
+@timefn
+def childLearnsLanguage(ndr, languageDomain,language,numberofsentences, cache):
     ndr.resetThresholdDict()
-    aChild = NDChild(rate, conservativerate, language)
+    aChild = NDChild(rate, conservativerate, language, cache)
 
     #print numberofsentences
     for j in xrange(numberofsentences):
@@ -74,7 +74,8 @@ def runSingleLearnerSimulation(languageDomain, numLearners, numberofsentences, l
     # results to write to a csv after its ended
 
     print("Starting the simulation...")
-    result = [childLearnsLanguage(ndr, languageDomain,language,numberofsentences) for x in range(numLearners)]
+    cache = {}
+    result = [childLearnsLanguage(ndr, languageDomain,language,numberofsentences,cache) for x in range(numLearners)]
     return result
 
 @timefn
@@ -164,8 +165,8 @@ def runLangWrapper(args):
     return runOneLanguage(*args)
 
 # using a global here since it appears to be shared between the subprocesses
-COLAG_DOMAIN = readLD('COLAG_2011_flat_formatted.txt')
 start = time()
+COLAG_DOMAIN = readLD('COLAG_2011_flat_formatted.txt')
 
 if __name__ == '__main__':
     parser = ArgumentParser(prog='Doing Away With Defaults', description='Set simulation parameters for learners')
@@ -184,7 +185,9 @@ if __name__ == '__main__':
     arguments = [(numLearners, numSentences, lang)
                   for lang in sorted(languages)]
 
-    results = pool.map(runLangWrapper, arguments)
+    for args in arguments:
+        runLangWrapper(args)
+    # results = pool.map(runLangWrapper, arguments)
 
     writeOutput(results, 'simulation-output4.csv')
 
