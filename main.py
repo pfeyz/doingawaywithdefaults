@@ -24,8 +24,7 @@ def timefn(fun):
     def wrapper(*args, **kwargs):
         start = time()
         val = fun(*args, **kwargs)
-        print "{}({}, {}) took {}".format(fun.__name__,
-                                          args, kwargs,
+        print "{} took {}".format(fun.__name__,
                                           time() - start)
         return val
     return wrapper
@@ -52,6 +51,7 @@ def createLD(language):
     langNum=bin(int(language))[2:].zfill(13)
     return COLAG_DOMAIN[langNum]
 
+@timefn
 def childLearnsLanguage(ndr, languageDomain,language,numberofsentences):
     ndr.resetThresholdDict()
     aChild = NDChild(rate, conservativerate, language)
@@ -184,7 +184,9 @@ if __name__ == '__main__':
     arguments = [(numLearners, numSentences, lang)
                   for lang in sorted(languages)]
 
-    results = pool.map(runLangWrapper, arguments)
+    # results = pool.map(runLangWrapper, arguments)
+    for args in arguments:
+        runLangWrapper(args)
 
     writeOutput(results, 'simulation-output4.csv')
 
